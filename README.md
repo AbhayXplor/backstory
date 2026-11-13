@@ -17,6 +17,22 @@ A pin history answers the narrow question. It classifies a small window at the e
 scene in every frame, so you get a line like `2002 open ground → 2016 building → 2019 planting → 2025
 building` instead of a district average that says nothing about the plot.
 
+Where the sea became land, a strip above the numbers says so with the area it covers. It comes from the same
+water mask: pixels that read as open water in 2002 and read as dry ground later, counted only where both
+frames were clear. On Palm Jumeirah that is 1.3 km² of the window.
+
+The April 2024 storm gets a card of its own. It reports what stood on the ground in the first clear pass
+after 16 April 2024, with the date and how many days passed, plus how low the plot sits against the median
+bare ground within 3 km. The elevation is Copernicus DEM at 30 m, reduced block by block to its lowest tenth
+so that towers do not read as hills.
+
+A second card gives August surface temperature: this block against the median of the same pass, and against
+that pass's planted ground. One afternoon, at the thermal band's 100 m, so it describes a block rather than a
+balcony.
+
+There is also the nearest main road, measured from OpenStreetMap geometry rather than eyeballed, and anything
+mapped as under construction within 900 m.
+
 Up to four change hotspots come out of connected-component analysis on the change mask. Each one has a
 real area in square metres, a centroid, a before/after crop and a stage: built by the later date, or
 still bare ground.
@@ -61,8 +77,16 @@ the app still runs and the question box falls back to deterministic answers.
 
 Search or a map click gives a coordinate. `GET /api/analyze` spawns `pipeline/analyze.py`, which
 searches two public STAC catalogues, reads only the window it needs out of each cloud-optimised
-GeoTIFF, masks cloud and shadow per pixel, computes NDVI, NDWI, NDBI and BSI for every frame, then
-compares each pair of frames and writes one JSON file plus its PNGs into `public/sites/`.
+GeoTIFF, decodes the integer bands to reflectance, masks cloud and shadow per pixel, computes NDVI,
+NDWI, NDBI and BSI for every frame, then compares each pair of frames and writes one JSON file plus
+its PNGs into `public/sites/`.
+
+The decoding matters more than it sounds. Sentinel-2 arrives as plain digital numbers and dividing by
+10000 cancels inside a normalised index. Landsat Collection 2 carries a scale and an offset, and that
+offset does not cancel. Comparing raw Landsat integers compressed every index until Gulf water scored
+0.09 NDWI and fell under the 0.15 water threshold, which is how a window that is mostly sea reported
+1.2% water. Decoded properly the same scene reads 97% water, and that is what makes the reclamation
+line possible.
 
 The change mask is split into connected regions with `rasterio.features.shapes`, which is where the
 hotspots and their areas come from. Water is dropped from the change count because a marina edge moves
@@ -74,14 +98,15 @@ with the tide.
 |---|---|
 | `GET /api/analyze?lat&lon&slug&name&years` | Runs the pipeline for one coordinate and returns its JSON. Cached by slug. |
 | `POST /api/ask` | Sends a question, the measured facts and up to two frames to Gemini. Rate limited to 12 requests a minute, answers cached. |
-| `GET /api/around?lat&lon&slug` | OpenStreetMap counts and nearest distances, cached to `public/sites/around_<slug>.json`. |
+| `GET /api/around?lat&lon&slug` | OpenStreetMap counts, nearest distances, the nearest main road from way geometry and mapped construction works. Cached to `public/sites/around_<slug>.json`. |
 
 ## Data
 
-Sentinel-2 L2A comes from Element 84's Earth Search on AWS Open Data. Landsat Collection 2 Level 2
-comes from the Microsoft Planetary Computer, which hands out anonymous access. Map tiles are
-OpenFreeMap, address search is Nominatim, nearby places are Overpass. All of it is free and none of it
-needs an account.
+Sentinel-2 L2A comes from Element 84's Earth Search on AWS Open Data. Landsat Collection 2 Level 2,
+including its thermal band, comes from the Microsoft Planetary Computer, which hands out anonymous
+access. Elevation is Copernicus DEM at 30 m on AWS Open Data. Map tiles are OpenFreeMap, address
+search is Nominatim, roads and nearby places are Overpass. All of it is free and none of it needs an
+account.
 
 ## What it deliberately won't claim
 
@@ -108,7 +133,19 @@ produce a measured number together.
 
 The pin window is small: about 15 m. A click that lands 20 m off describes the neighbouring plot.
 
-OpenStreetMap is volunteer data. In a new district an empty row means nobody mapped it yet.
+OpenStreetMap is volunteer data. In a new district an empty row means nobody mapped it yet, and a
+mapped construction site has no completion date attached.
+
+The flood card is one observation on one day. Sentinel-2 passes every five days at best and cloud can
+block the interesting ones, so the card always prints its date and the delay. A dry reading on 12 May
+says nothing about 17 April.
+
+The elevation card describes ground shape, not drainage. It cannot see a pipe, a soakaway or a
+kerb, and a plot at the top of a slope still floods when the drain outside it is blocked.
+
+The heat card is surface temperature at 100 m on a single August afternoon. Sand, asphalt and shaded
+paving differ by more than one neighbourhood does, so read it as a block against its pass, never as
+the temperature of an apartment.
 
 The Overpass lookup is best effort. If it fails, the neighbourhood card is absent and the rest of the
 report is unaffected.

@@ -1,0 +1,74 @@
+{
+  "radius_m": 800,
+  "transit_radius_m": 1600,
+  "road_radius_m": 900,
+  "groups": [
+    {
+      "key": "food",
+      "label": "Supermarkets and groceries",
+      "count": 4,
+      "nearest_m": 106
+    },
+    {
+      "key": "cafe",
+      "label": "Cafés and restaurants",
+      "count": 38,
+      "nearest_m": 94
+    },
+    {
+      "key": "shopping",
+      "label": "Malls and shops",
+      "count": 1,
+      "nearest_m": 172
+    },
+    {
+      "key": "health",
+      "label": "Clinics and pharmacies",
+      "count": 1,
+      "nearest_m": 328
+    },
+    {
+      "key": "park",
+      "label": "Parks and playgrounds",
+      "count": 2,
+      "nearest_m": 212
+    },
+    {
+      "key": "sport",
+      "label": "Gyms and sports",
+      "count": 1,
+      "nearest_m": 185
+    },
+    {
+      "key": "bank",
+      "label": "Banks and ATMs",
+      "count": 2,
+      "nearest_m": 180
+    },
+    {
+      "key": "parking",
+      "label": "Public parking",
+      "count": 1,
+      "nearest_m": 625
+    },
+    {
+      "key": "transit",
+      "label": "Metro or train station",
+      "count": 1,
+      "nearest_m": 623
+    }
+  ],
+  "roads": {
+    "nearest_m": 3,
+    "name": "Palm Jumeirah Road",
+    "kind": "secondary"
+  },
+  "works": [
+    {
+      "label": "apartments",
+      "name": "Como Residences",
+      "nearest_m": 556
+    }
+  ],
+  "source": "OpenStreetMap"
+}

@@ -9,8 +9,10 @@ import {
   Satellite,
   Search,
   Sparkles,
+  Sun,
   Trees,
   TriangleAlert,
+  Waves,
 } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import MapPicker from './MapPicker'
@@ -45,7 +47,42 @@ type Hotspot = {
 type Around = {
   radius_m: number
   transit_radius_m: number
+  road_radius_m?: number
   groups: { key: string; label: string; count: number; nearest_m: number | null }[]
+  roads?: { nearest_m: number; name: string | null; kind: string } | null
+  works?: { label: string; name: string | null; nearest_m: number }[]
+}
+
+type Context = {
+  terrain?: {
+    pin_m: number
+    around_m: number
+    low_by_m: number
+    min_m: number
+    max_m: number
+    window_km: number
+    resolution_m: number
+    source: string
+  } | null
+  flood?: {
+    status?: string
+    date?: string
+    days_after_storm?: number
+    scene?: string
+    water_pct?: number
+    pin_water_pct?: number
+    seen_pct?: number
+    cloud?: number
+  } | null
+  heat?: {
+    date: string
+    scene: string
+    platform: string
+    resolution_m: number
+    pin_c: number | null
+    median_c: number
+    green_c: number | null
+  } | null
 }
 
 type Pair = {
@@ -57,6 +94,8 @@ type Pair = {
   lostGreen: number
   newBuilt: number
   newWater: number
+  wasWater?: number
+  reclaimed_m2?: number
   overlay: string
 }
 
@@ -67,6 +106,7 @@ type Analysis = {
   grid: number[]
   dates: DateRow[]
   pairs: Pair[]
+  context?: Context
 }
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -595,6 +635,18 @@ function Report({
   const span = Math.max(1, Number(b.year) - Number(a.year))
   const perYear = pair ? Math.round((pair.changed / span) * 10) / 10 : null
   const openSites = pair?.hotspots?.filter((h) => h.stage === 'open').length ?? 0
+  const ctx = data.context ?? {}
+  const terrain = ctx.terrain ?? null
+  const heat = ctx.heat ?? null
+  const flood = ctx.flood ?? null
+  const works = around?.works ?? []
+  // Only the earliest frame can say "this was sea". A canal losing water between 2019 and
+  // 2025 is a tide or a dredge, not new land, and it must not be sold as reclamation.
+  const reclaim = data.pairs
+    .filter((p) => p.from === dates[0].year && (p.wasWater ?? 0) >= 5 && (p.reclaimed_m2 ?? 0) > 2000)
+    .reduce<Pair | undefined>((best, p) => ((p.reclaimed_m2 ?? 0) > (best?.reclaimed_m2 ?? 0) ? p : best), undefined)
+  const originWater = dates[0].water
+  const showLayers = Boolean(terrain || heat || flood || works.length || around?.roads)
 
   useEffect(() => {
     let live = true
@@ -631,7 +683,32 @@ function Report({
       return pair
         ? `About ${pair.newBuilt}% of the land here went from bare ground to building between ${a.year} and ${b.year}.`
         : 'Pick two dates to see how much was built.'
-    if (/water|flood|rain|drain|canal/.test(t))
+    if (/flood|storm|rain|drain|water came/.test(t)) {
+      const f = data.context?.flood
+      const ground = data.context?.terrain
+      const stood =
+        f && typeof f.pin_water_pct === 'number'
+          ? `On ${f.date}, the first clear pass after the April 2024 storm, this ground read ${f.pin_water_pct >= 50 ? 'as water' : f.pin_water_pct > 0 ? 'partly as water' : 'as dry'}.`
+          : 'No clear satellite pass followed the storm here, so there is no reading to give.'
+      const low =
+        ground && Math.abs(ground.low_by_m) >= 0.5
+          ? ` The ground itself sits ${Math.abs(ground.low_by_m)} m ${ground.low_by_m > 0 ? 'below' : 'above'} the median bare ground within ${ground.window_km} km.`
+          : ''
+      return `${stood}${low} That is what stood there on one day and how the ground is shaped, not a drainage or flood-risk model.`
+    }
+    if (/hot|heat|cooler|shade|temperature/.test(t)) {
+      const h = data.context?.heat
+      if (!h || h.pin_c === null) return 'No clear August thermal pass over this point, so there is no surface temperature to quote.'
+      return `On ${h.date} this block read ${h.pin_c} °C of surface temperature, against ${h.median_c} °C for the median of the same pass${h.green_c !== null ? ` and ${h.green_c} °C over its planted ground` : ''}. It is measured at ${h.resolution_m} m on one afternoon, so it describes the block, not your balcony.`
+    }
+    if (/sea|reclaim|land did not|before 2002|used to be water/.test(t)) {
+      const r = data.pairs
+        .filter((p) => p.from === data.dates[0].year && (p.wasWater ?? 0) >= 5 && (p.reclaimed_m2 ?? 0) > 2000)
+        .reduce<Pair | undefined>((best, p) => ((p.reclaimed_m2 ?? 0) > (best?.reclaimed_m2 ?? 0) ? p : best), undefined)
+      if (!r) return 'These frames do not show open water becoming land here, so there is no reclamation to report.'
+      return `In ${dates[0].year} about ${dates[0].spot?.water ?? 0}% of this window was open water. Between ${r.from} and ${r.to}, ${areaLabel(r.reclaimed_m2 ?? 0)} of it became dry land. That is a measurement from the frames, not a survey boundary.`
+    }
+    if (/water|canal/.test(t))
       return `Open water is ${b.water}% of the area now, against ${a.water}% in ${a.year}. That is water visible in these frames — not a flood-risk model.`
     return `I can answer questions about greenery, building, water and change between two dates. For “${q.trim()}” this imagery has no answer, and I would rather say so than invent one.`
   }
@@ -731,6 +808,138 @@ function Report({
             })}
             <span className="ml-auto hidden text-[11px] text-ink-3 sm:block">seven pixels around the centre, per frame</span>
           </div>
+        </section>
+      )}
+
+      {reclaim && (reclaim.reclaimed_m2 ?? 0) > 500 && (
+        <section className="mx-auto mt-4 max-w-6xl px-5 sm:px-8">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-2xl border border-sky/30 bg-[#eef6fb] px-4 py-3">
+            <span className="flex items-center gap-1.5 rounded-full bg-sky px-2 py-0.5 text-[10.5px] font-medium text-white">
+              <Waves className="h-3 w-3" strokeWidth={2.4} />
+              This land did not exist
+            </span>
+            <p className="min-w-0 flex-1 text-[13px] leading-snug text-ink">
+              In {dates[0].year}, {originWater}% of this {'1.4 km'} window was open water. By {reclaim.to},{' '}
+              {areaLabel(reclaim.reclaimed_m2 ?? 0)} of it had become dry land, counted only where both frames were
+              clear. At the pin: {dates.filter((d) => d.spot).map((d) => `${d.year} ${spotLabel(d.spot!)}`).join(' → ')}.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {showLayers && (
+        <section className="mx-auto mt-4 grid max-w-6xl gap-3 px-5 sm:px-8 lg:grid-cols-3">
+          <div className="rounded-2xl border border-line bg-card p-4">
+            <p className="label flex items-center gap-1.5">
+              <Droplets className="h-3.5 w-3.5 text-sky" strokeWidth={2} />
+              The April 2024 storm
+            </p>
+            {flood && typeof flood.pin_water_pct === 'number' ? (
+              <p className="mt-1.5 text-[13px] leading-snug">
+                {flood.pin_water_pct >= 50
+                  ? 'This ground was under water.'
+                  : flood.pin_water_pct > 0
+                    ? 'This ground was mostly dry, with water standing on part of it.'
+                    : (flood.water_pct ?? 0) > 2
+                      ? 'This ground was dry, and water stood nearby.'
+                      : 'This ground was dry.'}{' '}
+                Read from the first clear pass over this ground after the storm, {longDate(flood.date ?? '')}
+                {typeof flood.days_after_storm === 'number' && flood.days_after_storm > 3
+                  ? `, ${flood.days_after_storm} days later`
+                  : ''}
+                {typeof flood.water_pct === 'number' &&
+                  ` — ${flood.water_pct}% of the window read as water that day, open sea included`}
+                . That is what stood on the ground on one day, not a flood-risk model.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-[13px] leading-snug text-ink-2">
+                {flood?.status ?? 'No clear pass over this point in the weeks after the storm.'} A missing reading is
+                reported as missing, not as dry ground.
+              </p>
+            )}
+            {terrain && terrain.pin_m < 0.5 ? (
+              <p className="mt-2 border-t border-line pt-2 text-[12.5px] leading-relaxed text-ink-2">
+                The elevation model puts this point at {terrain.pin_m} m, at or under sea level, which normally means
+                the pin itself lands on water. No lower-than-its-neighbours claim is made for a point like that.
+              </p>
+            ) : terrain ? (
+              <p className="mt-2 border-t border-line pt-2 text-[12.5px] leading-relaxed text-ink-2">
+                The ground here sits at {terrain.pin_m} m,{' '}
+                {Math.abs(terrain.low_by_m) < 0.5
+                  ? 'level with'
+                  : terrain.low_by_m > 0
+                    ? `${terrain.low_by_m} m below`
+                    : `${Math.abs(terrain.low_by_m)} m above`}{' '}
+                the median bare ground within {terrain.window_km} km ({terrain.around_m} m). Ground shape only, from a{' '}
+                {terrain.resolution_m} m surface model — towers read as summits, so blocks are compared on their lowest
+                tenth rather than their peak.
+              </p>
+            ) : null}
+          </div>
+
+          {heat && (
+            <div className="rounded-2xl border border-line bg-card p-4">
+              <p className="label flex items-center gap-1.5">
+                <Sun className="h-3.5 w-3.5 text-clay" strokeWidth={2} />
+                August surface heat
+              </p>
+              {heat.pin_c !== null ? (
+                <p className="mt-1.5 text-[13px] leading-snug">
+                  This block read <span className="tnum">{heat.pin_c} °C</span> on {longDate(heat.date)}, against{' '}
+                  <span className="tnum">{heat.median_c} °C</span> for the median of the same pass
+                  {heat.green_c !== null && ` and ${heat.green_c} °C over its planted ground`} —{' '}
+                  {heat.pin_c - heat.median_c >= 0 ? 'warmer' : 'cooler'} than typical here by{' '}
+                  {Math.abs(Math.round((heat.pin_c - heat.median_c) * 10) / 10)} °C.
+                </p>
+              ) : (
+                <p className="mt-1.5 text-[13px] leading-snug text-ink-2">
+                  The thermal band was not clear over this point in an August pass.
+                </p>
+              )}
+              <p className="mt-2 border-t border-line pt-2 text-[12px] leading-relaxed text-ink-3">
+                Surface temperature at {heat.resolution_m} m, one afternoon, from {heat.platform}. Not air temperature and
+                not a comfort index: a dark roof at 2pm and a shaded pavement at 6pm are different questions.
+              </p>
+            </div>
+          )}
+
+          {(around?.roads || works.length > 0) && (
+            <div className="rounded-2xl border border-line bg-card p-4">
+              <p className="label flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5 text-forest" strokeWidth={2} />
+                Roads, and what is not finished
+              </p>
+              {around?.roads && (
+                <p className="mt-1.5 text-[13px] leading-snug">
+                  Nearest main road: {around.roads.name ? `${around.roads.name}, ` : ''}
+                  {around.roads.kind.replace('_', ' ')} at <span className="tnum">{around.roads.nearest_m} m</span>. A row
+                  of buildings between you and it is worth more than the distance, but this is the number a noise claim
+                  has to start from.
+                </p>
+              )}
+              {works.length > 0 ? (
+                <ul className="mt-2 border-t border-line pt-2">
+                  {works.map((w, i) => (
+                    <li key={i} className="flex items-baseline justify-between gap-2 py-0.5 text-[12.5px]">
+                      <span className="truncate">
+                        {w.name ?? w.label}
+                        <span className="text-ink-3">{w.name ? ` · ${w.label}` : ''}</span>
+                      </span>
+                      <span className="tnum shrink-0 text-ink-2">{w.nearest_m} m</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 border-t border-line pt-2 text-[12.5px] text-ink-2">
+                  Nothing mapped as under construction within 900 m.
+                </p>
+              )}
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-3">
+                OpenStreetMap, volunteer-mapped. A mapped plan is not a completion date, and an unmapped site is not an
+                empty one.
+              </p>
+            </div>
+          )}
         </section>
       )}
 
@@ -1026,7 +1235,7 @@ function Report({
           </button>
 
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {['Was this empty land?', 'Is the greenery going?', 'Is it noisy here?', 'Did water ever stand here?'].map((q) => (
+            {['Was this empty land?', 'Was this sea in 2002?', 'Is it noisy here?', 'Did the 2024 flood reach here?'].map((q) => (
               <button
                 key={q}
                 onClick={() => answer(q)}
@@ -1210,6 +1419,23 @@ function factsOf(data: Analysis, a: DateRow, b: DateRow, pair: Pair | undefined,
           groups: around.groups.map((g) => ({ what: g.label, count: g.count, nearest_m: g.nearest_m })),
         }
       : null,
+    nearest_main_road: around?.roads ?? null,
+    under_construction: around?.works ?? null,
+    terrain: data.context?.terrain ?? null,
+    standing_water_april_2024: data.context?.flood ?? null,
+    heat: data.context?.heat ?? null,
+    reclaimed: (() => {
+      const r = data.pairs
+        .filter((p) => p.from === data.dates[0].year && (p.wasWater ?? 0) >= 5 && (p.reclaimed_m2 ?? 0) > 2000)
+        .reduce<Pair | undefined>((best, p) => ((p.reclaimed_m2 ?? 0) > (best?.reclaimed_m2 ?? 0) ? p : best), undefined)
+      if (!r) return null
+      return {
+        was_water_pct_of_window: a.water,
+        became_land_m2: r.reclaimed_m2,
+        between: `${r.from}-${r.to}`,
+        at_the_pin: { before: a.spot ? spotLabel(a.spot) : null, after: b.spot ? spotLabel(b.spot) : null },
+      }
+    })(),
     cannot_answer: ['noise', 'street-level air quality', 'electricity and service charges', 'prices', 'anything finer than 10 m or under cloud'],
   }
 }

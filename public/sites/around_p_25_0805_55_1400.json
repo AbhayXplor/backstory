@@ -1,0 +1,95 @@
+{
+  "radius_m": 800,
+  "transit_radius_m": 1600,
+  "road_radius_m": 900,
+  "groups": [
+    {
+      "key": "food",
+      "label": "Supermarkets and groceries",
+      "count": 27,
+      "nearest_m": 48
+    },
+    {
+      "key": "cafe",
+      "label": "Cafés and restaurants",
+      "count": 129,
+      "nearest_m": 62
+    },
+    {
+      "key": "shopping",
+      "label": "Malls and shops",
+      "count": 3,
+      "nearest_m": 433
+    },
+    {
+      "key": "health",
+      "label": "Clinics and pharmacies",
+      "count": 22,
+      "nearest_m": 163
+    },
+    {
+      "key": "park",
+      "label": "Parks and playgrounds",
+      "count": 1,
+      "nearest_m": 301
+    },
+    {
+      "key": "sport",
+      "label": "Gyms and sports",
+      "count": 3,
+      "nearest_m": 200
+    },
+    {
+      "key": "bank",
+      "label": "Banks and ATMs",
+      "count": 7,
+      "nearest_m": 461
+    },
+    {
+      "key": "parking",
+      "label": "Public parking",
+      "count": 5,
+      "nearest_m": 161
+    },
+    {
+      "key": "transit",
+      "label": "Metro or train station",
+      "count": 4,
+      "nearest_m": 762
+    },
+    {
+      "key": "bus",
+      "label": "Bus stops",
+      "count": 2,
+      "nearest_m": 508
+    }
+  ],
+  "roads": {
+    "nearest_m": 21,
+    "name": "شارع الملك سلمان بن عبدالعزيز آل سعود",
+    "kind": "primary"
+  },
+  "works": [
+    {
+      "label": "apartments",
+      "name": "LIV Lux",
+      "nearest_m": 332
+    },
+    {
+      "label": "construction",
+      "name": "Marina Cove",
+      "nearest_m": 339
+    },
+    {
+      "label": "apartments",
+      "name": "Marina Shores",
+      "nearest_m": 407
+    },
+    {
+      "label": "apartments",
+      "name": "Rove Home Dubai Marina",
+      "nearest_m": 617
+    }
+  ],
+  "source": "OpenStreetMap"
+}

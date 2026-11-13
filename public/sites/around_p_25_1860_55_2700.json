@@ -1,6 +1,7 @@
 {
   "radius_m": 800,
   "transit_radius_m": 1600,
+  "road_radius_m": 900,
   "groups": [
     {
       "key": "food",
@@ -67,6 +68,33 @@
       "label": "Bus stops",
       "count": 11,
       "nearest_m": 271
+    }
+  ],
+  "roads": {
+    "nearest_m": 225,
+    "name": "طريق مراسي",
+    "kind": "secondary"
+  },
+  "works": [
+    {
+      "label": "commercial",
+      "name": "Four The Offices",
+      "nearest_m": 241
+    },
+    {
+      "label": "residential",
+      "name": "PLT Tower",
+      "nearest_m": 264
+    },
+    {
+      "label": "construction",
+      "name": "Waldorf Astoria Residences",
+      "nearest_m": 289
+    },
+    {
+      "label": "commercial",
+      "name": "Four Marketplace",
+      "nearest_m": 291
     }
   ],
   "source": "OpenStreetMap"

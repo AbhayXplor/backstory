@@ -33,6 +33,21 @@ Rules:
 - Use only numbers that appear in the facts. Never invent, round or derive one.
 - nearby_amenities comes from OpenStreetMap, not from the pixels. If asked about shops, schools or
   transport, answer from it and say plainly that it is map data, not imagery.
+- nearest_main_road comes from OpenStreetMap road geometry, measured in metres. Use it as a noise
+  proxy and say it is a proxy: a road 60 m away is a different morning from one 600 m away. Distances
+  under about 50 m are inside the mapped road reserve, so describe them as beside the road.
+- under_construction lists mapped works within 900 m. If a line, station or building there is not
+  finished, say so with its distance and note that a mapped plan is not a completion date.
+- standing_water_april_2024 is the water actually visible on the ground in the satellite pass after
+  the April 2024 storm, with its date. It is an observation on one day, not a flood-risk model. If
+  the value is absent, say no clear pass exists rather than guessing.
+- terrain describes ground elevation: pin_m is this plot, around_m is the median bare ground within
+  3 km, low_by_m is how much lower this plot sits. Positive means the plot is lower than its
+  surroundings. It is from a 30 m surface model, so it is ground shape, not a drainage survey.
+- heat is surface temperature on one August afternoon, not air temperature and not a comfort index.
+  Compare it with the scene median and the planted areas in the same pass, and say the scale is 100 m.
+- wasWater and reclaimed_m2 describe ground that was open water in the older frame and is not water in
+  the newer one. That is how reclaimed sea is reported; it is a measurement, not an inference.
 - momentum describes what the imagery shows about direction: recent change per year, and whether the
   largest changed sites are already built or still bare ground. Use it to say whether the area looks
   like it is still being built out or has settled, and say that it is read from the frames.
@@ -79,6 +94,29 @@ function metresBetween(lat1: number, lon1: number, lat2: number, lon2: number) {
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLon / 2) ** 2
   return 2 * R * Math.asin(Math.sqrt(a))
+}
+
+type LatLon = { lat: number; lon: number }
+
+/** Metres from the point to the nearest piece of a mapped line, not just to its vertices. */
+function metresToLine(lat: number, lon: number, line: LatLon[]) {
+  const mLat = 111320
+  const mLon = 111320 * Math.cos((lat * Math.PI) / 180)
+  let best = Infinity
+  for (let i = 0; i < line.length; i++) {
+    const a = line[i]
+    const b = line[Math.min(i + 1, line.length - 1)]
+    const ax = (a.lon - lon) * mLon
+    const ay = (a.lat - lat) * mLat
+    const bx = (b.lon - lon) * mLon
+    const by = (b.lat - lat) * mLat
+    const dx = bx - ax
+    const dy = by - ay
+    const len = dx * dx + dy * dy
+    const t = len > 0 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / len)) : 0
+    best = Math.min(best, Math.hypot(ax + t * dx, ay + t * dy))
+  }
+  return best
 }
 
 function json(res: import('node:http').ServerResponse, status: number, body: unknown) {
@@ -212,15 +250,19 @@ function analyzeApi(): Plugin {
         const cacheFile = slug ? path.join(root, 'public', 'sites', `around_${slug}.json`) : null
         if (cacheFile && existsSync(cacheFile)) {
           try {
-            const saved = JSON.parse(readFileSync(cacheFile, 'utf8')) as unknown
-            aroundCache.set(key, saved)
-            return json(res, 200, saved)
+            const saved = JSON.parse(readFileSync(cacheFile, 'utf8')) as Record<string, unknown>
+            // Older cache files predate roads and works, so they are refreshed once.
+            if ('roads' in saved) {
+              aroundCache.set(key, saved)
+              return json(res, 200, saved)
+            }
           } catch {
             /* fall through and refetch */
           }
         }
 
         const near = (meters: number) => `node(around:${meters},${roundCoord(lat)},${roundCoord(lon)})`
+        const way = (meters: number) => `way(around:${meters},${roundCoord(lat)},${roundCoord(lon)})`
         const query = `[out:json][timeout:25];(
 ${near(800)}["amenity"~"^(school|kindergarten|college|university|hospital|clinic|pharmacy|doctors|dentist|cafe|restaurant|fast_food|food_court|place_of_worship|bank|atm|bureau_de_change|parking|bus_station)$"];
 ${near(800)}["shop"~"^(supermarket|convenience|bakery|greengrocer|butcher|deli|mall|department_store|clothes|electronics|shoes)$"];
@@ -228,7 +270,12 @@ ${near(800)}["leisure"~"^(park|playground|garden|fitness_centre|sports_centre|sw
 ${near(600)}["highway"="bus_stop"];
 ${near(1600)}["railway"="station"];
 ${near(1600)}["station"="subway"];
-);out body 500;`
+${way(900)}["highway"~"^(motorway|trunk|primary|secondary|motorway_link|trunk_link)$"];
+${way(900)}["highway"="construction"];
+${way(900)}["construction"];
+${way(900)}["railway"~"^(construction|proposed)$"];
+${way(900)}["landuse"="construction"];
+);out geom 700;`
 
         try {
           let upstream: Response | null = null
@@ -241,8 +288,11 @@ ${near(1600)}["station"="subway"];
             if (upstream?.ok) break
           }
           if (!upstream?.ok) throw new Error(`overpass ${upstream?.status ?? 'unreachable'}`)
-          const data = (await upstream.json()) as { elements?: { lat: number; lon: number; tags?: Record<string, string> }[] }
-          const elements = (data.elements ?? []).filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon))
+          type Element = { type: string; lat?: number; lon?: number; geometry?: LatLon[]; tags?: Record<string, string> }
+          const data = (await upstream.json()) as { elements?: Element[] }
+          const all = data.elements ?? []
+          const elements = all.filter((e) => Number.isFinite(e.lat) && Number.isFinite(e.lon)) as (Element & LatLon)[]
+          const ways = all.filter((e) => Array.isArray(e.geometry) && (e.geometry?.length ?? 0) > 1)
 
           const groups = GROUPS.map((g) => {
             const hits = elements.filter((e) => g.test(e.tags ?? {}))
@@ -255,7 +305,55 @@ ${near(1600)}["station"="subway"];
             }
           }).filter((g) => g.count > 0)
 
-          const payload = { radius_m: 800, transit_radius_m: 1600, groups, source: 'OpenStreetMap' }
+          const THOROUGHFARE = ['motorway', 'trunk', 'primary', 'secondary', 'motorway_link', 'trunk_link']
+          let roads: { nearest_m: number; name: string | null; kind: string } | null = null
+          for (const w of ways) {
+            const kind = w.tags?.highway ?? ''
+            if (!THOROUGHFARE.includes(kind)) continue
+            const metres = Math.round(metresToLine(lat, lon, w.geometry as LatLon[]))
+            if (!roads || metres < roads.nearest_m) {
+              roads = { nearest_m: metres, name: w.tags?.name ?? null, kind: kind.replace('_link', ' link') }
+            }
+          }
+
+          const works = ways
+            .filter((w) => {
+              const t = w.tags ?? {}
+              const tagged =
+                t.highway === 'construction' ||
+                Boolean(t.construction) ||
+                t.building === 'construction' ||
+                t.landuse === 'construction' ||
+                ['construction', 'proposed'].includes(t.railway ?? '')
+              if (!tagged) return false
+              // Footpaths and unnamed generic works are map debris, not something to show a buyer.
+              const kind = (t.construction ?? t.railway ?? t.landuse ?? t.highway ?? '').replace(/_/g, ' ')
+              if (['footway', 'path', 'steps', 'cycleway', 'track', 'service'].includes(kind)) return false
+              // A named project is something to point at. An unnamed link road is map debris,
+              // unless it is a rail line, which is worth knowing about even unnamed.
+              return Boolean(t.name) || /rail|metro|tram|subway|light rail/i.test(kind)
+            })
+            .map((w) => {
+              const t = w.tags ?? {}
+              const kind = t.construction ?? t.railway ?? t.landuse ?? t.highway ?? 'works'
+              return {
+                label: kind.replace(/_/g, ' '),
+                name: t.name ?? null,
+                nearest_m: Math.round(metresToLine(lat, lon, w.geometry as LatLon[])),
+              }
+            })
+            .sort((a, b) => Number(Boolean(b.name)) - Number(Boolean(a.name)) || a.nearest_m - b.nearest_m)
+            .slice(0, 4)
+
+          const payload = {
+            radius_m: 800,
+            transit_radius_m: 1600,
+            road_radius_m: 900,
+            groups,
+            roads,
+            works,
+            source: 'OpenStreetMap',
+          }
           aroundCache.set(key, payload)
           if (cacheFile) {
             try {

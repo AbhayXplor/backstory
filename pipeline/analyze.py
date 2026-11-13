@@ -32,6 +32,9 @@ OUT = ROOT / "public" / "sites"
 STAC = "https://earth-search.aws.element84.com/v1"
 PC = "https://planetarycomputer.microsoft.com/api/stac/v1"
 
+DEM_URL = ("https://copernicus-dem-30m.s3.amazonaws.com/"
+           "Copernicus_DSM_COG_10_{tile}_DEM/Copernicus_DSM_COG_10_{tile}_DEM.tif")
+
 DEFAULT_YEARS = [2002, 2019, 2025]
 
 
@@ -73,8 +76,8 @@ def grid(bbox, w=W):
     return w, max(64, int(round(w * height_km / width_km)))
 
 
-def pick_item(catalog, collection, window, bbox):
-    for limit in (15, 30, 100):
+def pick_item(catalog, collection, window, bbox, max_cloud=15):
+    for limit in (max(2, max_cloud // 3), max_cloud, 100):
         search = catalog.search(
             collections=[collection],
             bbox=bbox,
@@ -102,6 +105,183 @@ def read_asset(item, asset, bbox, hw, nearest=False):
             fill_value=0,
             resampling=Resampling.nearest if nearest else Resampling.bilinear,
         ).astype("float32")
+
+
+def read_url(href, bbox, hw, nearest=True):
+    env = rasterio.Env(AWS_NO_SIGN_REQUEST="YES", AWS_REGION="us-west-2")
+    with env, rasterio.open(href) as ds:
+        b = transform_bounds("EPSG:4326", ds.crs, *bbox)
+        win = from_bounds(*b, transform=ds.transform)
+        return ds.read(
+            1,
+            window=win,
+            out_shape=hw,
+            boundless=True,
+            fill_value=0,
+            resampling=Resampling.nearest if nearest else Resampling.bilinear,
+        ).astype("float32")
+
+
+def to_reflectance(bands, sentinel):
+    """Both archives store integers, and both need decoding before an index means anything.
+
+    Sentinel-2 L2A is plain DN/10000, which cancels inside NDVI and NDWI because it is a
+    pure factor. Landsat Collection 2 L2 is DN*2.75e-5-0.2, and that -0.2 offset does not
+    cancel. Skipping it compressed every index: Gulf water scored 0.09 NDWI instead of 0.67
+    and fell under the 0.15 water threshold, which is why a sea window read 1.2% water.
+    """
+    if sentinel:
+        return {k: v / 10000.0 for k, v in bands.items()}
+    return {k: v * 2.75e-5 - 0.2 for k, v in bands.items()}
+
+
+def tile_name(lat, lon):
+    ns = "N" if lat >= 0 else "S"
+    ew = "E" if lon >= 0 else "W"
+    return f"{ns}{abs(int(np.floor(lat))):02d}_00_{ew}{abs(int(np.floor(lon))):03d}_00"
+
+
+def terrain(lat, lon, km=3.0):
+    """Is this plot lower than the ground around it?
+
+    Copernicus DEM is a surface model: a tower reads as a summit. So each 140 m block is
+    reduced to its 10th percentile, which is the bare ground in that block, and the pin's
+    block is compared with the median of the surrounding blocks.
+    """
+    arr = read_url(DEM_URL.format(tile=tile_name(lat, lon)), bbox_for(lat, lon, km), (220, 220))
+    arr = arr.astype("float32")
+    arr[arr < -100] = np.nan
+    if not np.isfinite(arr).any():
+        return None
+
+    h, w = arr.shape
+    b = 10
+    blocks = []
+    for r in range(0, h - b + 1, b):
+        for c in range(0, w - b + 1, b):
+            blk = arr[r:r + b, c:c + b]
+            blk = blk[np.isfinite(blk)]
+            if blk.size < b * b * 0.6:
+                continue
+            blocks.append((float(np.percentile(blk, 10)), r, c))
+    if len(blocks) < 10:
+        return None
+
+    cr, cc = h // 2, w // 2
+    # The pin is read from a 60 m window, not a 140 m block: in a canal district a block-wide
+    # minimum is the water in the canal, which made dry plots look 6 m below their neighbours.
+    centre = arr[max(0, cr - 2):cr + 3, max(0, cc - 2):cc + 3]
+    centre = centre[np.isfinite(centre)]
+    pin_m = float(np.percentile(centre, 10)) if centre.size else float(blocks[0][0])
+    # Blocks at sea level are water, not neighbours. Left in, an island reads as sitting
+    # 4 m above "the ground" when the real comparison is the mainland.
+    others = np.array([v[0] for v in blocks if v[0] > 0.5])
+    if others.size < 5:
+        others = np.array([v[0] for v in blocks])
+    around = float(np.median(others))
+    everything = arr[np.isfinite(arr)]
+    return {
+        "pin_m": round(pin_m, 1),
+        "around_m": round(around, 1),
+        "low_by_m": round(around - pin_m, 1),
+        "min_m": round(float(np.min(everything)), 1),
+        "max_m": round(float(np.max(everything)), 1),
+        "window_km": km,
+        "resolution_m": 30,
+        "source": "Copernicus DEM 30 m",
+    }
+
+
+def flood_extent(lat, lon):
+    """Water standing on the ground after the April 2024 storm, read from the first clear pass."""
+    cat = Client.open(STAC)
+    bbox = bbox_for(lat, lon, 1.4)
+    w, h = grid(bbox)
+    # April first, because water drains. Any later pass is reported with the delay it carries,
+    # and a hazy scene is only accepted if enough of this window is actually visible.
+    best = None
+    for window in ("2024-04-16/2024-04-30", "2024-05-01/2024-05-31"):
+        search = cat.search(
+            collections=["sentinel-2-l2a"], bbox=bbox, datetime=window,
+            query={"eo:cloud_cover": {"lt": 90}}, limit=30,
+        )
+        items = sorted(search.items(), key=lambda i: i.properties.get("eo:cloud_cover", 100))[:4]
+        for item in items:
+            green = read_asset(item, "green", bbox, (h, w))
+            nir = read_asset(item, "nir", bbox, (h, w))
+            scl = read_asset(item, "scl", bbox, (h, w), True).astype("int16")
+            visible = np.isin(scl, list(VALID_SCL)) | (scl == 6)
+            share = float(visible.mean())
+            if best is None or share > best[1]:
+                best = (item, share, scl, visible, green, nir)
+            if share > 0.5:
+                break
+        if best and best[1] > 0.5:
+            break
+
+    if best is None:
+        return {"status": "no pass found in the month after the storm"}
+    item, share, scl, visible, green, nir = best
+    seen = item.properties["datetime"][:10]
+    if share < 0.2:
+        return {
+            "status": "too cloudy over this point after the storm",
+            "date": seen,
+            "seen_pct": round(100 * share, 1),
+        }
+
+    water = (scl == 6) | (((green - nir) / (green + nir + 1e-6) > 0.15) & (scl > 0))
+    cy, cx = h // 2, w // 2
+    pin = water[max(0, cy - 1):cy + 2, max(0, cx - 1):cx + 2]
+    return {
+        "date": seen,
+        "days_after_storm": (datetime.fromisoformat(seen) - datetime(2024, 4, 16)).days,
+        "scene": item.id,
+        "cloud": round(float(item.properties.get("eo:cloud_cover") or 0), 1),
+        "water_pct": round(100 * float(water[visible].sum()) / max(int(visible.sum()), 1), 1),
+        "pin_water_pct": round(100 * float(pin.mean()), 0) if pin.size else None,
+        "seen_pct": round(100 * share, 1),
+    }
+
+
+def heat(lat, lon):
+    """Surface temperature on an August afternoon, against this scene's own median."""
+    cat = Client.open(PC)
+    bbox = bbox_for(lat, lon, 1.4)
+    w, h = grid(bbox)
+    item = None
+    for window in ("2025-08-01/2025-09-30", "2024-08-01/2024-09-30", "2023-08-01/2023-09-30"):
+        item = pick_item(cat, "landsat-c2-l2", window, bbox, max_cloud=25)
+        if item is not None:
+            break
+    if item is None:
+        return None
+    key = next((k for k in ("lwir11", "lwir") if k in item.assets), None)
+    if key is None:
+        return None
+
+    st = read_asset(item, key, bbox, (h, w)) * 0.00341802 + 149.0 - 273.15
+    red = read_asset(item, "red", bbox, (h, w))
+    nir = read_asset(item, "nir08", bbox, (h, w))
+    qa = read_asset(item, "qa_pixel", bbox, (h, w), True).astype("int32")
+    valid = (((qa & 1) | (qa & 8) | (qa & 16)) == 0) & (st > -20) & (st < 85)
+    if valid.sum() < 200:
+        return None
+
+    ndvi = (nir - red) / (nir + red + 1e-6)
+    cy, cx = h // 2, w // 2
+    win = (slice(max(0, cy - 2), cy + 3), slice(max(0, cx - 2), cx + 3))
+    pin = st[win][valid[win]]
+    planted = valid & (ndvi > 0.25)
+    return {
+        "date": item.properties["datetime"][:10],
+        "scene": item.id,
+        "platform": str(item.properties.get("platform", "landsat")).replace("landsat-", "Landsat "),
+        "resolution_m": 100,
+        "pin_c": round(float(np.median(pin)), 1) if pin.size else None,
+        "median_c": round(float(np.median(st[valid])), 1),
+        "green_c": round(float(np.median(st[planted])), 1) if planted.sum() > 20 else None,
+    }
 
 
 def stretch(rgb, valid):
@@ -287,6 +467,7 @@ def main():
             log(f"  {label}: read failed {exc}")
             continue
 
+        bands = to_reflectance(bands, sentinel)
         red, green, blue, nir, swir = (bands["red"], bands["green"], bands["blue"], bands["nir"], bands["swir"])
 
         if mask is not None and sentinel:
@@ -298,7 +479,7 @@ def main():
             valid = ((qa & 1) | (qa & 4) | (qa & 8) | (qa & 16)) == 0
             is_water = np.zeros_like(valid)
         else:
-            valid = (red > 0) & (nir > 0)
+            valid = (red > -0.05) & (nir > -0.05)
             is_water = np.zeros_like(valid)
 
         eps = 1e-6
@@ -369,6 +550,10 @@ def main():
             # also crossed the change threshold, so the two numbers can never contradict.
             new_built = changed & lb["built"] & ~la["built"]
             new_water = both & (lb["water"] & ~la["water"])
+            # Ground that was open water in the older frame and is not any more. This is the
+            # one number that survives the land mask, because reclaimed sea is exactly the
+            # case where "land" looks like it did not exist.
+            reclaimed = both & la["water"] & ~lb["water"]
             name = f"{args.slug}_change_{a}_{b}"
             save_overlay(OUT / f"change_{name}.png", lost_green, new_built, new_water)
             pairs.append({
@@ -383,8 +568,19 @@ def main():
                 "lostGreen": round(100 * float(lost_green.sum()) / n, 1),
                 "newBuilt": round(100 * float(new_built.sum()) / n, 1),
                 "newWater": round(100 * float(new_water.sum()) / n, 1),
+                "wasWater": round(100 * float(reclaimed.sum()) / max(int(both.sum()), 1), 1),
+                "reclaimed_m2": int(round(reclaimed.sum() * m_per_px * m_per_px / 100.0) * 100),
                 "overlay": f"/sites/change_{name}.png",
             })
+
+    context = {}
+    for key, fn in (("terrain", terrain), ("flood", flood_extent), ("heat", heat)):
+        try:
+            context[key] = fn(args.lat, args.lon)
+            log(f"  {key}: {'ok' if context[key] else 'unavailable'}")
+        except Exception as exc:
+            context[key] = None
+            log(f"  {key}: failed {exc}")
 
     payload = {
         "site": {
@@ -400,6 +596,7 @@ def main():
         "grid": [w, h],
         "dates": dates,
         "pairs": pairs,
+        "context": context,
     }
     target.write_text(json.dumps(payload, indent=2), encoding="utf8")
     log(f"wrote {target.name}")

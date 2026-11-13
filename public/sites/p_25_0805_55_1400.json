@@ -15,7 +15,7 @@
     ],
     "note": "1.4 km across"
   },
-  "generated": "2026-11-13T06:16:40+00:00",
+  "generated": "2026-11-13T08:13:22+00:00",
   "source": "Sentinel-2 L2A (ESA) and Landsat C2 L2 (USGS) \u00b7 Earth Search and Microsoft Planetary Computer",
   "grid": [
     640,
@@ -29,18 +29,38 @@
       "scene": "LE07_L2SP_160043_20020930_02_T1",
       "sensor": "Landsat",
       "resolution": 30,
-      "green": 0.0,
-      "water": 1.5,
-      "bare": 45.7,
+      "green": 1.8,
+      "water": 11.1,
+      "bare": 19.4,
       "spot": {
         "water": 0,
         "green": 0,
-        "built": 8,
-        "bare": 92,
+        "built": 100,
+        "bare": 0,
         "seen": 100
       },
       "seen": 100.0,
       "image": "/sites/rgb_p_25_0805_55_1400_2002.png"
+    },
+    {
+      "year": "2016",
+      "date": "2016-11-07",
+      "cloud": 0.0,
+      "scene": "LE07_L2SP_160043_20161107_02_T1",
+      "sensor": "Landsat",
+      "resolution": 30,
+      "green": 3.2,
+      "water": 13.5,
+      "bare": 36.5,
+      "spot": {
+        "water": 0,
+        "green": 0,
+        "built": 0,
+        "bare": 100,
+        "seen": 100
+      },
+      "seen": 88.8,
+      "image": "/sites/rgb_p_25_0805_55_1400_2016.png"
     },
     {
       "year": "2019",
@@ -86,50 +106,102 @@
   "pairs": [
     {
       "from": "2002",
+      "to": "2016",
+      "hotspots": [
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 0.0,
+          "area_m2": 37700,
+          "lat": 25.07506,
+          "lon": 55.14545,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2016_0.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 4.1,
+          "area_m2": 21000,
+          "lat": 25.086,
+          "lon": 55.13805,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2016_1.png"
+        },
+        {
+          "kind": "lost greenery",
+          "stage": "open",
+          "built_share": 2.6,
+          "area_m2": 14800,
+          "lat": 25.08556,
+          "lon": 55.1418,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2016_2.png"
+        },
+        {
+          "kind": "building",
+          "stage": "built",
+          "built_share": 21.9,
+          "area_m2": 9400,
+          "lat": 25.08107,
+          "lon": 55.13499,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2016_3.png"
+        }
+      ],
+      "seen": 88.8,
+      "changed": 6.8,
+      "lostGreen": 2.7,
+      "newBuilt": 0.6,
+      "newWater": 3.9,
+      "wasWater": 2.1,
+      "reclaimed_m2": 37200,
+      "overlay": "/sites/change_p_25_0805_55_1400_change_2002_2016.png"
+    },
+    {
+      "from": "2002",
       "to": "2019",
       "hotspots": [
         {
           "kind": "building",
           "stage": "open",
-          "built_share": 8.5,
-          "area_m2": 58900,
-          "lat": 25.08568,
-          "lon": 55.13909,
+          "built_share": 6.9,
+          "area_m2": 42400,
+          "lat": 25.08554,
+          "lon": 55.13913,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_0.png"
         },
         {
           "kind": "building",
           "stage": "open",
-          "built_share": 19.3,
-          "area_m2": 33900,
-          "lat": 25.07547,
-          "lon": 55.14577,
+          "built_share": 2.3,
+          "area_m2": 32300,
+          "lat": 25.0754,
+          "lon": 55.14581,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_1.png"
         },
         {
           "kind": "building",
           "stage": "open",
-          "built_share": 12.0,
-          "area_m2": 27300,
-          "lat": 25.08343,
-          "lon": 55.13709,
+          "built_share": 1.0,
+          "area_m2": 10200,
+          "lat": 25.08351,
+          "lon": 55.13685,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_2.png"
         },
         {
           "kind": "building",
           "stage": "open",
-          "built_share": 16.6,
-          "area_m2": 9500,
-          "lat": 25.08386,
-          "lon": 55.14056,
+          "built_share": 9.5,
+          "area_m2": 7900,
+          "lat": 25.07805,
+          "lon": 55.14594,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_3.png"
         }
       ],
       "seen": 97.6,
-      "changed": 15.3,
-      "lostGreen": 0.4,
-      "newBuilt": 0.4,
-      "newWater": 21.8,
+      "changed": 14.1,
+      "lostGreen": 2.0,
+      "newBuilt": 1.1,
+      "newWater": 11.0,
+      "wasWater": 1.3,
+      "reclaimed_m2": 24400,
       "overlay": "/sites/change_p_25_0805_55_1400_change_2002_2019.png"
     },
     {
@@ -139,46 +211,148 @@
         {
           "kind": "building",
           "stage": "open",
-          "built_share": 6.2,
-          "area_m2": 67000,
-          "lat": 25.08564,
-          "lon": 55.13937,
+          "built_share": 2.5,
+          "area_m2": 33400,
+          "lat": 25.07553,
+          "lon": 55.14594,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_0.png"
         },
         {
           "kind": "building",
           "stage": "open",
-          "built_share": 18.7,
-          "area_m2": 34200,
-          "lat": 25.07549,
-          "lon": 55.14588,
+          "built_share": 2.4,
+          "area_m2": 23200,
+          "lat": 25.08578,
+          "lon": 55.13831,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_1.png"
         },
         {
           "kind": "building",
-          "stage": "built",
-          "built_share": 28.8,
-          "area_m2": 30900,
-          "lat": 25.07753,
-          "lon": 55.14523,
+          "stage": "open",
+          "built_share": 5.8,
+          "area_m2": 21900,
+          "lat": 25.07775,
+          "lon": 55.14536,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_2.png"
         },
         {
           "kind": "building",
-          "stage": "open",
-          "built_share": 6.3,
-          "area_m2": 15200,
-          "lat": 25.0838,
-          "lon": 55.1372,
+          "stage": "built",
+          "built_share": 36.6,
+          "area_m2": 14100,
+          "lat": 25.0856,
+          "lon": 55.14174,
           "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_3.png"
         }
       ],
       "seen": 98.5,
-      "changed": 14.9,
-      "lostGreen": 0.4,
-      "newBuilt": 0.4,
-      "newWater": 19.9,
+      "changed": 14.0,
+      "lostGreen": 2.2,
+      "newBuilt": 1.2,
+      "newWater": 9.5,
+      "wasWater": 1.3,
+      "reclaimed_m2": 24900,
       "overlay": "/sites/change_p_25_0805_55_1400_change_2002_2025.png"
+    },
+    {
+      "from": "2016",
+      "to": "2019",
+      "hotspots": [
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 9.0,
+          "area_m2": 9400,
+          "lat": 25.08483,
+          "lon": 55.13918,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2019_0.png"
+        },
+        {
+          "kind": "building",
+          "stage": "built",
+          "built_share": 37.5,
+          "area_m2": 9400,
+          "lat": 25.08202,
+          "lon": 55.13781,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2019_1.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 15.3,
+          "area_m2": 9100,
+          "lat": 25.08384,
+          "lon": 55.14056,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2019_2.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 0.6,
+          "area_m2": 8500,
+          "lat": 25.08592,
+          "lon": 55.13846,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2019_3.png"
+        }
+      ],
+      "seen": 86.6,
+      "changed": 9.4,
+      "lostGreen": 0.5,
+      "newBuilt": 0.4,
+      "newWater": 7.4,
+      "wasWater": 0.2,
+      "reclaimed_m2": 2800,
+      "overlay": "/sites/change_p_25_0805_55_1400_change_2016_2019.png"
+    },
+    {
+      "from": "2016",
+      "to": "2025",
+      "hotspots": [
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 16.3,
+          "area_m2": 10000,
+          "lat": 25.08392,
+          "lon": 55.14056,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2025_0.png"
+        },
+        {
+          "kind": "building",
+          "stage": "built",
+          "built_share": 32.6,
+          "area_m2": 9500,
+          "lat": 25.07496,
+          "lon": 55.14247,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2025_1.png"
+        },
+        {
+          "kind": "building",
+          "stage": "built",
+          "built_share": 22.8,
+          "area_m2": 7500,
+          "lat": 25.07866,
+          "lon": 55.14642,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2025_2.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 9.1,
+          "area_m2": 6800,
+          "lat": 25.08477,
+          "lon": 55.13907,
+          "crop": "/sites/hot_p_25_0805_55_1400_2016_2025_3.png"
+        }
+      ],
+      "seen": 87.4,
+      "changed": 9.5,
+      "lostGreen": 0.5,
+      "newBuilt": 0.2,
+      "newWater": 6.4,
+      "wasWater": 0.3,
+      "reclaimed_m2": 5200,
+      "overlay": "/sites/change_p_25_0805_55_1400_change_2016_2025.png"
     },
     {
       "from": "2019",
@@ -226,7 +400,39 @@
       "lostGreen": 2.8,
       "newBuilt": 0.8,
       "newWater": 1.4,
+      "wasWater": 2.1,
+      "reclaimed_m2": 40500,
       "overlay": "/sites/change_p_25_0805_55_1400_change_2019_2025.png"
     }
-  ]
+  ],
+  "context": {
+    "terrain": {
+      "pin_m": -3.0,
+      "around_m": 3.2,
+      "low_by_m": 6.2,
+      "min_m": -16.8,
+      "max_m": 22.5,
+      "window_km": 3.0,
+      "resolution_m": 30,
+      "source": "Copernicus DEM 30 m"
+    },
+    "flood": {
+      "date": "2024-04-27",
+      "days_after_storm": 11,
+      "scene": "S2A_40RCN_20240427_0_L2A",
+      "cloud": 19.3,
+      "water_pct": 17.7,
+      "pin_water_pct": 0.0,
+      "seen_pct": 99.0
+    },
+    "heat": {
+      "date": "2025-08-28",
+      "scene": "LC09_L2SP_160043_20250828_02_T1",
+      "platform": "Landsat 9",
+      "resolution_m": 100,
+      "pin_c": 45.3,
+      "median_c": 44.7,
+      "green_c": 46.1
+    }
+  }
 }
