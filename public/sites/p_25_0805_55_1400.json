@@ -1,0 +1,232 @@
+{
+  "site": {
+    "id": "p_25_0805_55_1400",
+    "name": "Dubai Marina",
+    "city": "",
+    "centre": [
+      25.0805,
+      55.14
+    ],
+    "bbox": [
+      55.13305720752169,
+      25.07416916885231,
+      55.14694279247831,
+      25.08683083114769
+    ],
+    "note": "1.4 km across"
+  },
+  "generated": "2026-11-13T06:16:40+00:00",
+  "source": "Sentinel-2 L2A (ESA) and Landsat C2 L2 (USGS) \u00b7 Earth Search and Microsoft Planetary Computer",
+  "grid": [
+    640,
+    640
+  ],
+  "dates": [
+    {
+      "year": "2002",
+      "date": "2002-09-30",
+      "cloud": 0.0,
+      "scene": "LE07_L2SP_160043_20020930_02_T1",
+      "sensor": "Landsat",
+      "resolution": 30,
+      "green": 0.0,
+      "water": 1.5,
+      "bare": 45.7,
+      "spot": {
+        "water": 0,
+        "green": 0,
+        "built": 8,
+        "bare": 92,
+        "seen": 100
+      },
+      "seen": 100.0,
+      "image": "/sites/rgb_p_25_0805_55_1400_2002.png"
+    },
+    {
+      "year": "2019",
+      "date": "2019-10-26",
+      "cloud": 0.0,
+      "scene": "S2B_40RCN_20191026_1_L2A",
+      "sensor": "Sentinel-2",
+      "resolution": 10,
+      "green": 6.5,
+      "water": 18.9,
+      "bare": 24.4,
+      "spot": {
+        "water": 0,
+        "green": 0,
+        "built": 43,
+        "bare": 57,
+        "seen": 100
+      },
+      "seen": 97.6,
+      "image": "/sites/rgb_p_25_0805_55_1400_2019.png"
+    },
+    {
+      "year": "2025",
+      "date": "2025-10-04",
+      "cloud": 0.0,
+      "scene": "S2B_40RCN_20251004_0_L2A",
+      "sensor": "Sentinel-2",
+      "resolution": 10,
+      "green": 6.3,
+      "water": 17.7,
+      "bare": 21.8,
+      "spot": {
+        "water": 0,
+        "green": 0,
+        "built": 49,
+        "bare": 51,
+        "seen": 100
+      },
+      "seen": 98.5,
+      "image": "/sites/rgb_p_25_0805_55_1400_2025.png"
+    }
+  ],
+  "pairs": [
+    {
+      "from": "2002",
+      "to": "2019",
+      "hotspots": [
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 8.5,
+          "area_m2": 58900,
+          "lat": 25.08568,
+          "lon": 55.13909,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_0.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 19.3,
+          "area_m2": 33900,
+          "lat": 25.07547,
+          "lon": 55.14577,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_1.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 12.0,
+          "area_m2": 27300,
+          "lat": 25.08343,
+          "lon": 55.13709,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_2.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 16.6,
+          "area_m2": 9500,
+          "lat": 25.08386,
+          "lon": 55.14056,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2019_3.png"
+        }
+      ],
+      "seen": 97.6,
+      "changed": 15.3,
+      "lostGreen": 0.4,
+      "newBuilt": 0.4,
+      "newWater": 21.8,
+      "overlay": "/sites/change_p_25_0805_55_1400_change_2002_2019.png"
+    },
+    {
+      "from": "2002",
+      "to": "2025",
+      "hotspots": [
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 6.2,
+          "area_m2": 67000,
+          "lat": 25.08564,
+          "lon": 55.13937,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_0.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 18.7,
+          "area_m2": 34200,
+          "lat": 25.07549,
+          "lon": 55.14588,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_1.png"
+        },
+        {
+          "kind": "building",
+          "stage": "built",
+          "built_share": 28.8,
+          "area_m2": 30900,
+          "lat": 25.07753,
+          "lon": 55.14523,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_2.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 6.3,
+          "area_m2": 15200,
+          "lat": 25.0838,
+          "lon": 55.1372,
+          "crop": "/sites/hot_p_25_0805_55_1400_2002_2025_3.png"
+        }
+      ],
+      "seen": 98.5,
+      "changed": 14.9,
+      "lostGreen": 0.4,
+      "newBuilt": 0.4,
+      "newWater": 19.9,
+      "overlay": "/sites/change_p_25_0805_55_1400_change_2002_2025.png"
+    },
+    {
+      "from": "2019",
+      "to": "2025",
+      "hotspots": [
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 1.6,
+          "area_m2": 9100,
+          "lat": 25.07496,
+          "lon": 55.1425,
+          "crop": "/sites/hot_p_25_0805_55_1400_2019_2025_0.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 1.7,
+          "area_m2": 7700,
+          "lat": 25.0769,
+          "lon": 55.14423,
+          "crop": "/sites/hot_p_25_0805_55_1400_2019_2025_1.png"
+        },
+        {
+          "kind": "building",
+          "stage": "open",
+          "built_share": 0.9,
+          "area_m2": 7000,
+          "lat": 25.07955,
+          "lon": 55.13486,
+          "crop": "/sites/hot_p_25_0805_55_1400_2019_2025_2.png"
+        },
+        {
+          "kind": "lost greenery",
+          "stage": "open",
+          "built_share": 4.0,
+          "area_m2": 4400,
+          "lat": 25.08278,
+          "lon": 55.13696,
+          "crop": "/sites/hot_p_25_0805_55_1400_2019_2025_3.png"
+        }
+      ],
+      "seen": 97.3,
+      "changed": 6.8,
+      "lostGreen": 2.8,
+      "newBuilt": 0.8,
+      "newWater": 1.4,
+      "overlay": "/sites/change_p_25_0805_55_1400_change_2019_2025.png"
+    }
+  ]
+}
